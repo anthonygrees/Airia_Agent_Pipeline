@@ -146,8 +146,14 @@ jobs:
           echo "  Content-Type: application/json"
           echo "  Accept: application/json"
           echo "  Authorization: Bearer [REDACTED]"
+          echo "  X-API-Key: [REDACTED]"
           echo "  X-Tenant-ID: ${{ secrets.AIRIA_TENANT_ID }}"
           echo "  X-User-ID: ${{ secrets.AIRIA_USER_ID }}"
+          echo "  X-Organization-ID: ${{ secrets.AIRIA_ORGANIZATION_ID }}"
+          echo "  X-Workspace-ID: ${{ secrets.AIRIA_WORKSPACE_ID }}"
+          echo "  X-Client-ID: ${{ secrets.AIRIA_CLIENT_ID }}"
+          echo "  X-API-Version: v1"
+          echo "  User-Agent: GitHub-Actions-Airia-Agent-Promotion/1.0"
           
           echo "Request payload structure:"
           echo "$payload" | jq -C '.' || echo "Failed to format payload as JSON"
@@ -158,6 +164,7 @@ jobs:
             -H "Content-Type: application/json" \
             -H "Accept: application/json" \
             -H "Authorization: Bearer $api_token" \
+            -H "X-API-Key: $api_token" \
             -H "X-Tenant-ID: ${{ secrets.AIRIA_TENANT_ID }}" \
             -H "X-User-ID: ${{ secrets.AIRIA_USER_ID }}" \
             -H "X-Organization-ID: ${{ secrets.AIRIA_ORGANIZATION_ID }}" \
