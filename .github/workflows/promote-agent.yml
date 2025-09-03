@@ -97,7 +97,7 @@ jobs:
           echo "Payload created successfully"
           
           # Determine the API endpoint
-          api_endpoint="${AIRIA_API_ENDPOINT:-https://api.prodaus.airia.ai/v1/PipelineImport/definition}"
+          api_endpoint="${AIRIA_API_ENDPOINT:-https://prodaus.api.airia.ai/v1/PipelineImport/definition}"
           echo "API Endpoint: $api_endpoint"
           
           # Test DNS resolution
@@ -173,7 +173,7 @@ jobs:
             -F "AgentVersionIds=${{ steps.promote.outputs.agent_version_id }}" \
             -F "ModelId=${{ secrets.AIRIA_EVALUATION_MODEL_ID }}" \
             -F "ExternalAgents=" \
-            "${AIRIA_EVALUATION_ENDPOINT:-https://api.prodaus.airia.ai/v1/AgentEvaluation}")
+            "${AIRIA_EVALUATION_ENDPOINT:-https://prodaus.api.airia.ai/v1/AgentEvaluation}")
           
           # Extract response body and status code
           response_body=$(echo "$response" | head -n -1)
