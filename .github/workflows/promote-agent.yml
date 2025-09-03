@@ -52,13 +52,31 @@ jobs:
         id: promote
         run: |
           # Read the pipeline definition
+          echo "Reading pipelineDefinition.json..."
+          if [ ! -f "pipelineDefinition.json" ]; then
+            echo "Error: pipelineDefinition.json not found"
+            exit 1
+          fi
+          
           pipeline_definition=$(cat pipelineDefinition.json)
+          echo "Pipeline definition loaded successfully"
           
           # Set default values for non-workflow_dispatch triggers
           conflict_strategy="${{ github.event.inputs.conflict_resolution_strategy || 'SkipConflictingEntities' }}"
           project_behavior="${{ github.event.inputs.default_project_behavior || 'Library' }}"
           
+          echo "Using conflict strategy: $conflict_strategy"
+          echo "Using project behavior: $project_behavior"
+          
+          # Validate JSON before processing
+          echo "$pipeline_definition" | jq . > /dev/null
+          if [ $? -ne 0 ]; then
+            echo "Error: Invalid JSON in pipelineDefinition.json"
+            exit 1
+          fi
+          
           # Create the request payload
+          echo "Creating request payload..."
           payload=$(jq -n \
             --argjson pipelineDefinition "$pipeline_definition" \
             --arg projectId "${{ secrets.AIRIA_PROJECT_ID }}" \
@@ -70,6 +88,13 @@ jobs:
               conflictResolutionStrategy: $conflictResolutionStrategy,
               defaultProjectBehavior: $defaultProjectBehavior
             }')
+          
+          if [ $? -ne 0 ]; then
+            echo "Error: Failed to create JSON payload"
+            exit 1
+          fi
+          
+          echo "Payload created successfully"
           
           # Make the API call
           response=$(curl -s -w "\n%{http_code}" \
