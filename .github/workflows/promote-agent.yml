@@ -96,14 +96,33 @@ jobs:
           
           echo "Payload created successfully"
           
+          # Determine the API endpoint
+          api_endpoint="${AIRIA_API_ENDPOINT:-https://api.prodaus.airia.ai/v1/PipelineImport/definition}"
+          echo "API Endpoint: $api_endpoint"
+          
           # Make the API call
+          echo "Making API call..."
           response=$(curl -s -w "\n%{http_code}" \
             -X POST \
             -H "x-correlation-id: ${{ steps.correlation.outputs.correlation_id }}" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.AIRIA_API_TOKEN }}" \
             -d "$payload" \
-            "${AIRIA_API_ENDPOINT:-https://api.prodaus.airia.ai/v1/PipelineImport/definition}")
+            "$api_endpoint")
+          
+          curl_exit_code=$?
+          echo "Curl exit code: $curl_exit_code"
+          
+          if [ $curl_exit_code -ne 0 ]; then
+            echo "Error: curl command failed with exit code $curl_exit_code"
+            case $curl_exit_code in
+              6) echo "Couldn't resolve host. DNS problem?" ;;
+              7) echo "Failed to connect to host" ;;
+              28) echo "Operation timeout" ;;
+              *) echo "Unknown curl error" ;;
+            esac
+            exit 1
+          fi
           
           # Extract response body and status code
           response_body=$(echo "$response" | head -n -1)
