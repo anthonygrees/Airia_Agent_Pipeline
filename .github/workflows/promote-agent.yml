@@ -127,10 +127,16 @@ jobs:
           # Make the API call
           echo "Making API call..."
           echo "Correlation ID: ${{ steps.correlation.outputs.correlation_id }}"
-          echo "Request headers (Authorization redacted):"
+          echo "Request headers:"
           echo "  x-correlation-id: ${{ steps.correlation.outputs.correlation_id }}"
           echo "  Content-Type: application/json"
+          echo "  Accept: application/json"
           echo "  Authorization: Bearer [REDACTED]"
+          echo "  X-Tenant-ID: ${{ secrets.AIRIA_TENANT_ID }}"
+          echo "  X-User-ID: ${{ secrets.AIRIA_USER_ID }}"
+          
+          echo "Request payload structure:"
+          echo "$payload" | jq -C '.' || echo "Failed to format payload as JSON"
           
           set +e  # Temporarily disable exit on error
           response=$(curl -s -w "\n%{http_code}" -X POST \
