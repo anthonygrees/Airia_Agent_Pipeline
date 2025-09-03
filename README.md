@@ -22,9 +22,9 @@ Add the following secrets to your GitHub repository:
 ### Optional Secrets
 
    - **Name**: `AIRIA_API_ENDPOINT`
-   - **Value**: Custom API endpoint URL (defaults to `https://api.prodaus.airia.ai/v1/PipelineImport/definition`)
+   - **Value**: Custom API endpoint URL (defaults to `https://prodaus.api.airia.ai/v1/PipelineImport/definition`)
    - **Name**: `AIRIA_EVALUATION_ENDPOINT`
-   - **Value**: Custom evaluation endpoint URL (defaults to `https://api.prodaus.airia.ai/v1/AgentEvaluation`)
+   - **Value**: Custom evaluation endpoint URL (defaults to `https://prodaus.api.airia.ai/v1/AgentEvaluation`)
 
 ### Required Files
 
