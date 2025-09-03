@@ -1,0 +1,143 @@
+name: Promote Agent Definition
+
+on:
+  workflow_dispatch:
+    inputs:
+      conflict_resolution_strategy:
+        description: 'Conflict Resolution Strategy'
+        required: false
+        default: 'SkipConflictingEntities'
+        type: choice
+        options:
+          - SkipConflictingEntities
+          - OverwriteConflictingEntities
+      default_project_behavior:
+        description: 'Default Project Behavior'
+        required: false
+        default: 'Library'
+        type: choice
+        options:
+          - Library
+          - Project
+      run_evaluation:
+        description: 'Run automated evaluation after promotion'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  promote-agent:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Check if pipelineDefinition.json exists
+        run: |
+          if [ ! -f "pipelineDefinition.json" ]; then
+            echo "Error: pipelineDefinition.json not found in repository root"
+            exit 1
+          fi
+          
+      - name: Generate correlation ID
+        id: correlation
+        run: echo "correlation_id=$(uuidgen)" >> $GITHUB_OUTPUT
+        
+      - name: Promote agent to Airia
+        id: promote
+        run: |
+          # Read the pipeline definition
+          pipeline_definition=$(cat pipelineDefinition.json)
+          
+          # Create the request payload
+          payload=$(jq -n \
+            --argjson pipelineDefinition "$pipeline_definition" \
+            --arg projectId "${{ secrets.AIRIA_PROJECT_ID }}" \
+            --arg conflictResolutionStrategy "${{ github.event.inputs.conflict_resolution_strategy }}" \
+            --arg defaultProjectBehavior "${{ github.event.inputs.default_project_behavior }}" \
+            '{
+              pipelineDefinition: $pipelineDefinition,
+              projectId: (if $projectId == "" then null else $projectId end),
+              conflictResolutionStrategy: $conflictResolutionStrategy,
+              defaultProjectBehavior: $defaultProjectBehavior
+            }')
+          
+          # Make the API call
+          response=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "x-correlation-id: ${{ steps.correlation.outputs.correlation_id }}" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.AIRIA_API_TOKEN }}" \
+            -d "$payload" \
+            "${AIRIA_API_ENDPOINT:-https://api.prodaus.airia.ai/v1/PipelineImport/definition}")
+        env:
+          AIRIA_API_ENDPOINT: ${{ secrets.AIRIA_API_ENDPOINT }}
+          
+          # Extract response body and status code
+          response_body=$(echo "$response" | head -n -1)
+          status_code=$(echo "$response" | tail -n 1)
+          
+          echo "Status Code: $status_code"
+          echo "Response: $response_body"
+          
+          # Check if the request was successful
+          if [ "$status_code" -ge 200 ] && [ "$status_code" -lt 300 ]; then
+            echo "✅ Agent definition promoted successfully!"
+            echo "Correlation ID: ${{ steps.correlation.outputs.correlation_id }}"
+            
+            # Extract agent version ID from response for evaluation
+            agent_version_id=$(echo "$response_body" | jq -r '.agentVersionId // .id // empty')
+            if [ -n "$agent_version_id" ]; then
+              echo "agent_version_id=$agent_version_id" >> $GITHUB_OUTPUT
+              echo "Agent Version ID: $agent_version_id"
+            fi
+          else
+            echo "❌ Failed to promote agent definition"
+            echo "Status Code: $status_code"
+            echo "Response: $response_body"
+            exit 1
+          fi
+          
+      - name: Run Agent Evaluation
+        if: ${{ github.event.inputs.run_evaluation == 'true' && steps.promote.outputs.agent_version_id }}
+        run: |
+          echo "🧪 Starting automated agent evaluation..."
+          
+          # Generate new correlation ID for evaluation
+          eval_correlation_id=$(uuidgen)
+          echo "Evaluation Correlation ID: $eval_correlation_id"
+          
+          # Create evaluation request
+          response=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "x-correlation-id: $eval_correlation_id" \
+            -H "Authorization: Bearer ${{ secrets.AIRIA_API_TOKEN }}" \
+            -F "AgentVersionIds=${{ steps.promote.outputs.agent_version_id }}" \
+            -F "ModelId=${{ secrets.AIRIA_EVALUATION_MODEL_ID }}" \
+            -F "ExternalAgents=" \
+            "${AIRIA_EVALUATION_ENDPOINT:-https://api.prodaus.airia.ai/v1/AgentEvaluation}")
+          
+          # Extract response body and status code
+          response_body=$(echo "$response" | head -n -1)
+          status_code=$(echo "$response" | tail -n 1)
+          
+          echo "Evaluation Status Code: $status_code"
+          echo "Evaluation Response: $response_body"
+          
+          # Check if evaluation was successful
+          if [ "$status_code" -ge 200 ] && [ "$status_code" -lt 300 ]; then
+            echo "✅ Agent evaluation started successfully!"
+            eval_id=$(echo "$response_body" | jq -r '.evaluationId // .id // empty')
+            if [ -n "$eval_id" ]; then
+              echo "Evaluation ID: $eval_id"
+              echo "📊 You can monitor the evaluation progress in your Airia dashboard"
+            fi
+          else
+            echo "⚠️ Failed to start agent evaluation (promotion was still successful)"
+            echo "Evaluation Status Code: $status_code"
+            echo "Evaluation Response: $response_body"
+          fi
+        env:
+          AIRIA_API_ENDPOINT: ${{ secrets.AIRIA_API_ENDPOINT }}
+          AIRIA_EVALUATION_ENDPOINT: ${{ secrets.AIRIA_EVALUATION_ENDPOINT }}
