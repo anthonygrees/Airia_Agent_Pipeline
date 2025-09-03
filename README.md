@@ -16,13 +16,17 @@ Add the following secrets to your GitHub repository:
    - **Value**: Your Airia API authentication token
    - **Name**: `AIRIA_PROJECT_ID`
    - **Value**: Your Airia project identifier
+   - **Name**: `AIRIA_TENANT_ID`
+   - **Value**: Your Airia tenant identifier
+   - **Name**: `AIRIA_USER_ID`
+   - **Value**: Your Airia user identifier
    - **Name**: `AIRIA_EVALUATION_MODEL_ID`
    - **Value**: Model ID to use for agent evaluation testing
 
 ### Optional Secrets
 
    - **Name**: `AIRIA_API_ENDPOINT`
-   - **Value**: Custom API endpoint URL (defaults to `https://prodaus.api.airia.ai/v1/PipelineImport/definition`)
+   - **Value**: Custom API endpoint URL (defaults to `https://prodaus.api.airia.ai/v1/PipelineImport`)
    - **Name**: `AIRIA_EVALUATION_ENDPOINT`
    - **Value**: Custom evaluation endpoint URL (defaults to `https://prodaus.api.airia.ai/v1/AgentEvaluation`)
 
