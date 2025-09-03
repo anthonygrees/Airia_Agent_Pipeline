@@ -1,4 +1,4 @@
-# Airia Agent Promotion GitHub Action
+# Airia Agent Promotion GitHub Action.
 
 This GitHub Action promotes an Airia agent definition to Airia using the `pipelineDefinition.json` file in your repository.
   
