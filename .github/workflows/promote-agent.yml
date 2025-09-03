@@ -112,17 +112,27 @@ jobs:
           fi
           
           # Clean and debug token format
-          api_token=$(echo "${{ secrets.AIRIA_API_TOKEN }}" | xargs)  # Trim whitespace
           original_token="${{ secrets.AIRIA_API_TOKEN }}"
+          
+          # Multiple approaches to trim whitespace
+          api_token="${original_token}"
+          api_token="${api_token#"${api_token%%[![:space:]]*}"}"  # Remove leading whitespace
+          api_token="${api_token%"${api_token##*[![:space:]]}"}"  # Remove trailing whitespace
           
           echo "Original token length: ${#original_token}"
           echo "Cleaned token length: ${#api_token}"
           echo "Token starts with: ${api_token:0:10}..."
           echo "Token ends with: ...${api_token: -10}"
           
+          # Debug last few characters as hex
+          echo "Last 5 characters as hex:"
+          echo -n "${api_token: -5}" | xxd -p
+          
           # Check for whitespace issues
           if [[ "$original_token" != "$api_token" ]]; then
-            echo "✅ Whitespace was trimmed from token"
+            echo "✅ Whitespace was trimmed from token (length changed from ${#original_token} to ${#api_token})"
+          else
+            echo "ℹ️ No whitespace trimming needed or whitespace couldn't be trimmed"
           fi
           
           # Make the API call
