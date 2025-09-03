@@ -111,18 +111,46 @@ jobs:
             exit 1
           fi
           
+          # Debug token format (without exposing the actual token)
+          api_token="${{ secrets.AIRIA_API_TOKEN }}"
+          token_length=${#api_token}
+          echo "Token length: $token_length"
+          echo "Token starts with: ${api_token:0:10}..."
+          echo "Token ends with: ...${api_token: -10}"
+          
+          # Check for common token format issues
+          if [[ "$api_token" =~ ^[[:space:]] ]]; then
+            echo "Warning: Token appears to start with whitespace"
+          fi
+          if [[ "$api_token" =~ [[:space:]]$ ]]; then
+            echo "Warning: Token appears to end with whitespace"
+          fi
+          
           # Make the API call
           echo "Making API call..."
+          echo "Correlation ID: ${{ steps.correlation.outputs.correlation_id }}"
+          echo "Request headers (Authorization redacted):"
+          echo "  x-correlation-id: ${{ steps.correlation.outputs.correlation_id }}"
+          echo "  Content-Type: application/json"
+          echo "  Authorization: Bearer [REDACTED]"
+          
+          # Add verbose curl output for debugging
           set +e  # Temporarily disable exit on error
-          response=$(curl -s -w "\n%{http_code}" -X POST \
+          response=$(curl -v -s -w "\n%{http_code}" -X POST \
             -H "x-correlation-id: ${{ steps.correlation.outputs.correlation_id }}" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.AIRIA_API_TOKEN }}" \
+            -H "Authorization: Bearer $api_token" \
             -d "$payload" \
-            "$api_endpoint")
+            "$api_endpoint" 2>&1)
           curl_exit_code=$?
           set -e  # Re-enable exit on error
           echo "Curl exit code: $curl_exit_code"
+          
+          # Separate verbose output from response
+          response_with_code=$(echo "$response" | tail -2)
+          verbose_output=$(echo "$response" | head -n -2)
+          echo "Verbose curl output:"
+          echo "$verbose_output"
           
           if [ $curl_exit_code -ne 0 ]; then
             echo "Error: curl command failed with exit code $curl_exit_code"
@@ -136,8 +164,8 @@ jobs:
           fi
           
           # Extract response body and status code
-          response_body=$(echo "$response" | head -n -1)
-          status_code=$(echo "$response" | tail -n 1)
+          response_body=$(echo "$response_with_code" | head -n -1)
+          status_code=$(echo "$response_with_code" | tail -n 1)
           
           echo "Status Code: $status_code"
           echo "Response: $response_body"
