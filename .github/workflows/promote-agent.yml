@@ -82,6 +82,8 @@ jobs:
             --arg projectId "${{ secrets.AIRIA_PROJECT_ID }}" \
             --arg tenantId "${{ secrets.AIRIA_TENANT_ID }}" \
             --arg userId "${{ secrets.AIRIA_USER_ID }}" \
+            --arg organizationId "${{ secrets.AIRIA_ORGANIZATION_ID }}" \
+            --arg workspaceId "${{ secrets.AIRIA_WORKSPACE_ID }}" \
             --arg conflictResolutionStrategy "$conflict_strategy" \
             --arg defaultProjectBehavior "$project_behavior" \
             '{
@@ -89,6 +91,8 @@ jobs:
               projectId: (if $projectId == "" then null else $projectId end),
               tenantId: (if $tenantId == "" then null else $tenantId end),
               userId: (if $userId == "" then null else $userId end),
+              organizationId: (if $organizationId == "" then null else $organizationId end),
+              workspaceId: (if $workspaceId == "" then null else $workspaceId end),
               conflictResolutionStrategy: $conflictResolutionStrategy,
               defaultProjectBehavior: $defaultProjectBehavior
             }')
@@ -132,7 +136,10 @@ jobs:
           response=$(curl -s -w "\n%{http_code}" -X POST \
             -H "x-correlation-id: ${{ steps.correlation.outputs.correlation_id }}" \
             -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
             -H "Authorization: Bearer $api_token" \
+            -H "X-Tenant-ID: ${{ secrets.AIRIA_TENANT_ID }}" \
+            -H "X-User-ID: ${{ secrets.AIRIA_USER_ID }}" \
             -d "$payload" \
             "$api_endpoint")
           curl_exit_code=$?
