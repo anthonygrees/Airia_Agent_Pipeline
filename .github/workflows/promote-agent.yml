@@ -100,6 +100,11 @@ jobs:
           api_endpoint="${AIRIA_API_ENDPOINT:-https://api.prodaus.airia.ai/v1/PipelineImport/definition}"
           echo "API Endpoint: $api_endpoint"
           
+          # Test DNS resolution
+          hostname=$(echo "$api_endpoint" | sed 's|https\?://||' | sed 's|/.*||')
+          echo "Testing DNS resolution for: $hostname"
+          nslookup "$hostname" || echo "DNS resolution failed for $hostname"
+          
           # Make the API call
           echo "Making API call..."
           set +e  # Temporarily disable exit on error
