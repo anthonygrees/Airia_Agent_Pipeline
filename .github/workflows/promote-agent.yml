@@ -54,12 +54,16 @@ jobs:
           # Read the pipeline definition
           pipeline_definition=$(cat pipelineDefinition.json)
           
+          # Set default values for non-workflow_dispatch triggers
+          conflict_strategy="${{ github.event.inputs.conflict_resolution_strategy || 'SkipConflictingEntities' }}"
+          project_behavior="${{ github.event.inputs.default_project_behavior || 'Library' }}"
+          
           # Create the request payload
           payload=$(jq -n \
             --argjson pipelineDefinition "$pipeline_definition" \
             --arg projectId "${{ secrets.AIRIA_PROJECT_ID }}" \
-            --arg conflictResolutionStrategy "${{ github.event.inputs.conflict_resolution_strategy }}" \
-            --arg defaultProjectBehavior "${{ github.event.inputs.default_project_behavior }}" \
+            --arg conflictResolutionStrategy "$conflict_strategy" \
+            --arg defaultProjectBehavior "$project_behavior" \
             '{
               pipelineDefinition: $pipelineDefinition,
               projectId: (if $projectId == "" then null else $projectId end),
@@ -104,7 +108,7 @@ jobs:
           AIRIA_API_ENDPOINT: ${{ secrets.AIRIA_API_ENDPOINT }}
           
       - name: Run Agent Evaluation
-        if: ${{ github.event.inputs.run_evaluation == 'true' && steps.promote.outputs.agent_version_id }}
+        if: ${{ (github.event.inputs.run_evaluation != 'false' || github.event.inputs.run_evaluation == null) && steps.promote.outputs.agent_version_id }}
         run: |
           echo "🧪 Starting automated agent evaluation..."
           
