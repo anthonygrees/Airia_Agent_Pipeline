@@ -80,11 +80,15 @@ jobs:
           payload=$(jq -n \
             --argjson pipelineDefinition "$pipeline_definition" \
             --arg projectId "${{ secrets.AIRIA_PROJECT_ID }}" \
+            --arg tenantId "${{ secrets.AIRIA_TENANT_ID }}" \
+            --arg userId "${{ secrets.AIRIA_USER_ID }}" \
             --arg conflictResolutionStrategy "$conflict_strategy" \
             --arg defaultProjectBehavior "$project_behavior" \
             '{
               pipelineDefinition: $pipelineDefinition,
               projectId: (if $projectId == "" then null else $projectId end),
+              tenantId: (if $tenantId == "" then null else $tenantId end),
+              userId: (if $userId == "" then null else $userId end),
               conflictResolutionStrategy: $conflictResolutionStrategy,
               defaultProjectBehavior: $defaultProjectBehavior
             }')
@@ -97,7 +101,7 @@ jobs:
           echo "Payload created successfully"
           
           # Determine the API endpoint
-          api_endpoint="${AIRIA_API_ENDPOINT:-https://prodaus.api.airia.ai/v1/PipelineImport/definition}"
+          api_endpoint="${AIRIA_API_ENDPOINT:-https://prodaus.api.airia.ai/v1/PipelineImport}"
           echo "API Endpoint: $api_endpoint"
           
           # Test DNS resolution
@@ -111,29 +115,10 @@ jobs:
             exit 1
           fi
           
-          # Clean and debug token format
-          original_token="${{ secrets.AIRIA_API_TOKEN }}"
-          
-          # Multiple approaches to trim whitespace
-          api_token="${original_token}"
-          api_token="${api_token#"${api_token%%[![:space:]]*}"}"  # Remove leading whitespace
-          api_token="${api_token%"${api_token##*[![:space:]]}"}"  # Remove trailing whitespace
-          
-          echo "Original token length: ${#original_token}"
-          echo "Cleaned token length: ${#api_token}"
-          echo "Token starts with: ${api_token:0:10}..."
-          echo "Token ends with: ...${api_token: -10}"
-          
-          # Debug last few characters as hex
-          echo "Last 5 characters as hex:"
-          echo -n "${api_token: -5}" | xxd -p
-          
-          # Check for whitespace issues
-          if [[ "$original_token" != "$api_token" ]]; then
-            echo "✅ Whitespace was trimmed from token (length changed from ${#original_token} to ${#api_token})"
-          else
-            echo "ℹ️ No whitespace trimming needed or whitespace couldn't be trimmed"
-          fi
+          # Use the API token (format appears correct from previous debugging)
+          api_token="${{ secrets.AIRIA_API_TOKEN }}"
+          echo "Token length: ${#api_token}"
+          echo "Token format: ${api_token:0:10}...${api_token: -10}"
           
           # Make the API call
           echo "Making API call..."
@@ -143,23 +128,16 @@ jobs:
           echo "  Content-Type: application/json"
           echo "  Authorization: Bearer [REDACTED]"
           
-          # Add verbose curl output for debugging
           set +e  # Temporarily disable exit on error
-          response=$(curl -v -s -w "\n%{http_code}" -X POST \
+          response=$(curl -s -w "\n%{http_code}" -X POST \
             -H "x-correlation-id: ${{ steps.correlation.outputs.correlation_id }}" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $api_token" \
             -d "$payload" \
-            "$api_endpoint" 2>&1)
+            "$api_endpoint")
           curl_exit_code=$?
           set -e  # Re-enable exit on error
           echo "Curl exit code: $curl_exit_code"
-          
-          # Separate verbose output from response
-          response_with_code=$(echo "$response" | tail -2)
-          verbose_output=$(echo "$response" | head -n -2)
-          echo "Verbose curl output:"
-          echo "$verbose_output"
           
           if [ $curl_exit_code -ne 0 ]; then
             echo "Error: curl command failed with exit code $curl_exit_code"
@@ -173,8 +151,8 @@ jobs:
           fi
           
           # Extract response body and status code
-          response_body=$(echo "$response_with_code" | head -n -1)
-          status_code=$(echo "$response_with_code" | tail -n 1)
+          response_body=$(echo "$response" | head -n -1)
+          status_code=$(echo "$response" | tail -n 1)
           
           echo "Status Code: $status_code"
           echo "Response: $response_body"
