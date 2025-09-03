@@ -77,6 +77,16 @@ jobs:
           
           # Create the request payload
           echo "Creating request payload..."
+          # Show what parameters we have available
+          echo "Available parameters:"
+          echo "  projectId: ${{ secrets.AIRIA_PROJECT_ID }}"
+          echo "  tenantId: ${{ secrets.AIRIA_TENANT_ID }}"
+          echo "  userId: ${{ secrets.AIRIA_USER_ID }}"
+          echo "  organizationId: ${{ secrets.AIRIA_ORGANIZATION_ID }}"
+          echo "  workspaceId: ${{ secrets.AIRIA_WORKSPACE_ID }}"
+          echo "  conflictResolutionStrategy: $conflict_strategy"
+          echo "  defaultProjectBehavior: $project_behavior"
+          
           payload=$(jq -n \
             --argjson pipelineDefinition "$pipeline_definition" \
             --arg projectId "${{ secrets.AIRIA_PROJECT_ID }}" \
@@ -84,6 +94,8 @@ jobs:
             --arg userId "${{ secrets.AIRIA_USER_ID }}" \
             --arg organizationId "${{ secrets.AIRIA_ORGANIZATION_ID }}" \
             --arg workspaceId "${{ secrets.AIRIA_WORKSPACE_ID }}" \
+            --arg clientId "${{ secrets.AIRIA_CLIENT_ID }}" \
+            --arg environmentId "${{ secrets.AIRIA_ENVIRONMENT_ID }}" \
             --arg conflictResolutionStrategy "$conflict_strategy" \
             --arg defaultProjectBehavior "$project_behavior" \
             '{
@@ -93,6 +105,8 @@ jobs:
               userId: (if $userId == "" then null else $userId end),
               organizationId: (if $organizationId == "" then null else $organizationId end),
               workspaceId: (if $workspaceId == "" then null else $workspaceId end),
+              clientId: (if $clientId == "" then null else $clientId end),
+              environmentId: (if $environmentId == "" then null else $environmentId end),
               conflictResolutionStrategy: $conflictResolutionStrategy,
               defaultProjectBehavior: $defaultProjectBehavior
             }')
@@ -146,6 +160,11 @@ jobs:
             -H "Authorization: Bearer $api_token" \
             -H "X-Tenant-ID: ${{ secrets.AIRIA_TENANT_ID }}" \
             -H "X-User-ID: ${{ secrets.AIRIA_USER_ID }}" \
+            -H "X-Organization-ID: ${{ secrets.AIRIA_ORGANIZATION_ID }}" \
+            -H "X-Workspace-ID: ${{ secrets.AIRIA_WORKSPACE_ID }}" \
+            -H "X-Client-ID: ${{ secrets.AIRIA_CLIENT_ID }}" \
+            -H "X-API-Version: v1" \
+            -H "User-Agent: GitHub-Actions-Airia-Agent-Promotion/1.0" \
             -d "$payload" \
             "$api_endpoint")
           curl_exit_code=$?
