@@ -102,15 +102,15 @@ jobs:
           
           # Make the API call
           echo "Making API call..."
-          response=$(curl -s -w "\n%{http_code}" \
-            -X POST \
+          set +e  # Temporarily disable exit on error
+          response=$(curl -s -w "\n%{http_code}" -X POST \
             -H "x-correlation-id: ${{ steps.correlation.outputs.correlation_id }}" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.AIRIA_API_TOKEN }}" \
             -d "$payload" \
             "$api_endpoint")
-          
           curl_exit_code=$?
+          set -e  # Re-enable exit on error
           echo "Curl exit code: $curl_exit_code"
           
           if [ $curl_exit_code -ne 0 ]; then
