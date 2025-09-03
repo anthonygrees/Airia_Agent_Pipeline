@@ -105,6 +105,12 @@ jobs:
           echo "Testing DNS resolution for: $hostname"
           nslookup "$hostname" || echo "DNS resolution failed for $hostname"
           
+          # Check if API token is provided
+          if [ -z "${{ secrets.AIRIA_API_TOKEN }}" ]; then
+            echo "Error: AIRIA_API_TOKEN secret is not set"
+            exit 1
+          fi
+          
           # Make the API call
           echo "Making API call..."
           set +e  # Temporarily disable exit on error
@@ -151,6 +157,15 @@ jobs:
             echo "❌ Failed to promote agent definition"
             echo "Status Code: $status_code"
             echo "Response: $response_body"
+            
+            # Provide specific guidance for common error codes
+            case $status_code in
+              401) echo "Authentication failed. Please check your AIRIA_API_TOKEN secret." ;;
+              403) echo "Access forbidden. Token may not have required permissions." ;;
+              404) echo "Endpoint not found. Please check the API endpoint URL." ;;
+              422) echo "Invalid request payload. Check your pipelineDefinition.json format." ;;
+              500) echo "Server error. Please try again later." ;;
+            esac
             exit 1
           fi
         env:
