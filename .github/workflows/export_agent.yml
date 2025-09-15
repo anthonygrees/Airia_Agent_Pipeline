@@ -1,0 +1,32 @@
+name: Export Pipeline Definition
+
+on:
+  workflow_dispatch:
+  
+permissions:
+  contents: write
+  
+jobs:
+  export-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Fetch pipeline from Airia
+        run: |
+          curl -s \
+            -H "X-API-Key: ${{ secrets.AIRIA_API_TOKEN }}" \
+            "https://prodaus.api.airia.ai/v1/PipelinesConfig/export/${{ secrets.AIRIA_PIPELINE_ID }}" \
+            | jq . > pipelineDefinitionXX.json
+
+      - name: Commit and push export file
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add pipelineDefinition.json
+          git commit -m "Update pipelineDefinition.json [skip ci]" || echo "No changes to commit"
+          git push
