@@ -38,7 +38,7 @@ jobs:
 
           if [ "$HTTP_CODE" = "200" ]; then
             echo "✅ Debug: API call successful, processing JSON..."
-            cat raw_response.json | jq . > pipelineDefinitionXX.json
+            cat raw_response.json | jq . > export_pipelineDefinition.json
             echo "🔍 Debug: jq exit code: $?"
           else
             echo "❌ Debug: API call failed with HTTP code: $HTTP_CODE"
@@ -49,13 +49,13 @@ jobs:
 
           echo "🔍 Debug: Files after API call and jq processing:"
           ls -la
-          echo "🔍 Debug: pipelineDefinitionXX.json file size and content preview:"
-          if [ -f "pipelineDefinitionXX.json" ]; then
-            ls -la pipelineDefinitionXX.json
-            echo "🔍 Debug: First 10 lines of pipelineDefinitionXX.json:"
-            head -10 pipelineDefinitionXX.json
+          echo "🔍 Debug: export_pipelineDefinition.json file size and content preview:"
+          if [ -f "export_pipelineDefinition.json" ]; then
+            ls -la export_pipelineDefinition.json
+            echo "🔍 Debug: First 10 lines of export_pipelineDefinition.json:"
+            head -10 export_pipelineDefinition.json
           else
-            echo "❌ Debug: pipelineDefinitionXX.json file not found!"
+            echo "❌ Debug: export_pipelineDefinition.json file not found!"
           fi
 
       - name: Commit and push export file
@@ -80,22 +80,22 @@ jobs:
           git config --global --get user.name
           git config --global --get user.email
 
-          echo "🔍 Debug: Checking if pipelineDefinitionXX.json exists before adding..."
-          if [ -f "pipelineDefinitionXX.json" ]; then
-            echo "✅ Debug: pipelineDefinitionXX.json exists"
+          echo "🔍 Debug: Checking if export_pipelineDefinition.json exists before adding..."
+          if [ -f "export_pipelineDefinition.json" ]; then
+            echo "✅ Debug: export_pipelineDefinition.json exists"
             echo "🔍 Debug: File details:"
-            ls -la pipelineDefinitionXX.json
+            ls -la export_pipelineDefinition.json
             echo "🔍 Debug: File content (first 3 lines):"
-            head -3 pipelineDefinitionXX.json
+            head -3 export_pipelineDefinition.json
           else
-            echo "❌ Debug: pipelineDefinitionXX.json does not exist!"
+            echo "❌ Debug: export_pipelineDefinition.json does not exist!"
             echo "🔍 Debug: Available files:"
             find . -name "*.json" -type f
             exit 1
           fi
 
           echo "🔍 Debug: Adding file to git..."
-          git add pipelineDefinitionXX.json
+          git add export_pipelineDefinition.json
           echo "🔍 Debug: Git add exit code: $?"
 
           echo "🔍 Debug: Git status after add:"
@@ -103,7 +103,7 @@ jobs:
           git status
 
           echo "🔍 Debug: Attempting to commit..."
-          if git commit -m "Update pipelineDefinition.json [skip ci]"; then
+          if git commit -m "Update export_pipelineDefinition.json [skip ci]"; then
             echo "✅ Debug: Commit successful"
             echo "🔍 Debug: Git log (last 2 commits):"
             git log --oneline -2
