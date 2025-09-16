@@ -16,17 +16,110 @@ jobs:
 
       - name: Fetch pipeline from Airia
         run: |
-          curl -s \
+          echo "🔍 Debug: Starting pipeline fetch from Airia..."
+          echo "🔍 Debug: API endpoint: https://prodaus.api.airia.ai/v1/PipelinesConfig/export/${{ secrets.AIRIA_PIPELINE_ID }}"
+          echo "🔍 Debug: Current working directory:"
+          pwd
+          echo "🔍 Debug: Files before API call:"
+          ls -la
+
+          echo "🔍 Debug: Making API call..."
+          HTTP_CODE=$(curl -w "%{http_code}" -s \
             -H "X-API-Key: ${{ secrets.AIRIA_API_TOKEN }}" \
             "https://prodaus.api.airia.ai/v1/PipelinesConfig/export/${{ secrets.AIRIA_PIPELINE_ID }}" \
-            | jq . > pipelineDefinitionXX.json
+            -o raw_response.json)
+
+          echo "🔍 Debug: HTTP response code: $HTTP_CODE"
+          echo "🔍 Debug: Raw response file size:"
+          ls -la raw_response.json
+          echo "🔍 Debug: Raw response content (first 500 chars):"
+          head -c 500 raw_response.json
+          echo ""
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Debug: API call successful, processing JSON..."
+            cat raw_response.json | jq . > pipelineDefinitionXX.json
+            echo "🔍 Debug: jq exit code: $?"
+          else
+            echo "❌ Debug: API call failed with HTTP code: $HTTP_CODE"
+            echo "❌ Debug: Response content:"
+            cat raw_response.json
+            exit 1
+          fi
+
+          echo "🔍 Debug: Files after API call and jq processing:"
+          ls -la
+          echo "🔍 Debug: pipelineDefinitionXX.json file size and content preview:"
+          if [ -f "pipelineDefinitionXX.json" ]; then
+            ls -la pipelineDefinitionXX.json
+            echo "🔍 Debug: First 10 lines of pipelineDefinitionXX.json:"
+            head -10 pipelineDefinitionXX.json
+          else
+            echo "❌ Debug: pipelineDefinitionXX.json file not found!"
+          fi
 
       - name: Commit and push export file
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "🔍 Debug: Starting git operations..."
+          echo "🔍 Debug: Current working directory:"
+          pwd
+          echo "🔍 Debug: All files in current directory:"
+          ls -la
+
+          echo "🔍 Debug: Git status before operations:"
+          git status --porcelain
+          git status
+
+          echo "🔍 Debug: Configuring git user..."
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          echo "🔍 Debug: Git configuration:"
+          git config --global --get user.name
+          git config --global --get user.email
+
+          echo "🔍 Debug: Checking if pipelineDefinitionXX.json exists before adding..."
+          if [ -f "pipelineDefinitionXX.json" ]; then
+            echo "✅ Debug: pipelineDefinitionXX.json exists"
+            echo "🔍 Debug: File details:"
+            ls -la pipelineDefinitionXX.json
+            echo "🔍 Debug: File content (first 3 lines):"
+            head -3 pipelineDefinitionXX.json
+          else
+            echo "❌ Debug: pipelineDefinitionXX.json does not exist!"
+            echo "🔍 Debug: Available files:"
+            find . -name "*.json" -type f
+            exit 1
+          fi
+
+          echo "🔍 Debug: Adding file to git..."
           git add pipelineDefinitionXX.json
-          git commit -m "Update pipelineDefinition.json [skip ci]" || echo "No changes to commit"
-          git push
+          echo "🔍 Debug: Git add exit code: $?"
+
+          echo "🔍 Debug: Git status after add:"
+          git status --porcelain
+          git status
+
+          echo "🔍 Debug: Attempting to commit..."
+          if git commit -m "Update pipelineDefinition.json [skip ci]"; then
+            echo "✅ Debug: Commit successful"
+            echo "🔍 Debug: Git log (last 2 commits):"
+            git log --oneline -2
+          else
+            echo "⚠ Debug: No changes to commit or commit failed"
+            echo "🔍 Debug: Git status after commit attempt:"
+            git status
+          fi
+
+          echo "🔍 Debug: Pushing to remote..."
+          if git push; then
+            echo "✅ Debug: Push successful"
+          else
+            echo "❌ Debug: Push failed with exit code: $?"
+            echo "🔍 Debug: Git remote info:"
+            git remote -v
+            echo "🔍 Debug: Current branch:"
+            git branch -a
+          fi
