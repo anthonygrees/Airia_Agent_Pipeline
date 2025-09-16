@@ -1,17 +1,60 @@
-# Airia Agent Promotion GitHub Action.
+# Airia Agent GitHub Actions
 
-This GitHub Action promotes an Airia agent definition to Airia using the `pipelineDefinition.json` file in your repository.
-  
-After promotion of you Airia Agent, the GitHub Action then runs Airia Evaluations to automatically test the new Agent.
-  
-## Setup
+This repository contains two GitHub Actions for working with Airia agents:
 
-### Required Secrets
+1. **Agent Promotion** (`promote-agent.yml`): Promotes an agent definition to Airia using the `pipelineDefinition.json` file
+2. **Pipeline Export** (`export_agent.yml`): Exports a pipeline definition from Airia and commits it to your repository
+
+## Agent Promotion Workflow
+
+Promotes an Airia agent definition to Airia using the `pipelineDefinition.json` file in your repository.
+
+After promotion of your Airia Agent, the GitHub Action then runs Airia Evaluations to automatically test the new Agent.
+  
+## Pipeline Export Workflow
+
+Exports a pipeline definition from Airia and automatically commits it to your repository as `pipelineDefinitionXX.json`.
+
+### Features
+- **Automated Export**: Fetches pipeline definitions directly from Airia API
+- **Comprehensive Debugging**: Detailed logging to troubleshoot export issues
+- **Automatic Git Operations**: Commits and pushes exported files to your repository
+- **Error Handling**: Validates API responses and file operations
+- **Manual Trigger**: Run on-demand via GitHub Actions interface
+
+### Required Secrets for Export
+- **Name**: `AIRIA_API_TOKEN` - Your Airia API authentication token
+- **Name**: `AIRIA_PIPELINE_ID` - The ID of the pipeline to export
+
+### Usage
+1. Navigate to your repository on GitHub
+2. Go to the "Actions" tab
+3. Select "Export Pipeline Definition" workflow
+4. Click "Run workflow"
+
+The workflow will:
+1. Fetch the pipeline definition from Airia API
+2. Save it as `pipelineDefinitionXX.json`
+3. Commit and push the file to your repository
+4. Provide detailed debugging output for troubleshooting
+
+### Debugging Output
+The export workflow includes comprehensive debugging that shows:
+- API endpoint and HTTP response codes
+- File creation and content validation
+- Git status throughout the process
+- Detailed error messages for failed operations
+
+---
+
+## Agent Promotion Workflow Setup
+
+### Required Secrets for Promotion
 
 Add the following secrets to your GitHub repository:
 
 1. Go to your repository → Settings → Secrets and variables → Actions
-2. Add the following repository secrets:
+2. Add the following repository secrets for agent promotion:
    - **Name**: `AIRIA_API_TOKEN`
    - **Value**: Your Airia API authentication token
    - **Name**: `AIRIA_PROJECT_ID`
@@ -34,7 +77,7 @@ Add the following secrets to your GitHub repository:
 
 - `pipelineDefinition.json` must exist in the repository root
 
-## Usage
+## Agent Promotion Usage
 
 1. Navigate to your repository on GitHub
 2. Go to the "Actions" tab
