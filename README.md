@@ -4,7 +4,9 @@ This repository contains two GitHub Actions for working with Airia agents:
 
 1. **Agent Promotion** (`promote-agent.yml`): Promotes an agent definition to Airia using the `pipelineDefinition.json` file
 2. **Pipeline Export** (`export_agent.yml`): Exports a pipeline definition from Airia and commits it to your repository
-
+  
+![alt text](/images/AiriaCICD.png)
+  
 ## Agent Promotion Workflow
 
 Promotes an Airia agent definition to Airia using the `pipelineDefinition.json` file in your repository.
