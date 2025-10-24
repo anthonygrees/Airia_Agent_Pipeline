@@ -4,6 +4,7 @@ This repository contains two GitHub Actions for working with Airia agents:
 
 1. **Agent Promotion** (`promote-agent.yml`): Promotes an agent definition to Airia using the `pipelineDefinition.json` file
 2. **Pipeline Export** (`export_agent.yml`): Exports a pipeline definition from Airia and commits it to your repository
+3. **Create Project** (`create_project.yml`): Creates a new project (and allows you to set a budget and assign a user group as project admin)
   
 ![alt text](/images/AiriaCICD.png)
   
@@ -122,6 +123,63 @@ When enabled (default), the workflow will automatically trigger an evaluation of
 - **Non-blocking**: Evaluation failures won't fail the overall workflow (promotion success is maintained)
 
 The evaluation uses the model specified in `AIRIA_EVALUATION_MODEL_ID` and can be monitored via the returned evaluation ID.
+
+---
+
+## Create Airia Project Workflow
+
+This GitHub Actions workflow automates the creation of an Airia project with budget configuration and user group assignment.
+
+## Overview
+
+The workflow performs the following steps:
+1. Creates a new Airia project
+2. Sets default budget values if a budget is provided (period=2/monthly, alert=100%, stop=false)
+3. Updates the project with budget settings (if budget amount is provided)
+4. Retrieves user group information by name (if user group name is provided)
+5. Assigns the user group as project admin with all associated users (if user group name is provided)
+
+## Prerequisites
+
+- **GitHub Secret**: `AIRIA_API_TOKEN` must be configured in your repository secrets
+- **Existing User Group**: The user group specified must already exist in Airia
+- **Tenant ID**: Valid tenant ID within Airia
+
+## Workflow Inputs
+
+| Input | Description | Required |
+|-------|-------------|----------|
+| `project_name` | Name of the project to create | Yes |
+| `project_description` | Description of the project | No |
+| `user_group_name` | Name of existing user group to assign | No |
+| `tenant_id` | Tenant ID for the project | Yes |
+| `budget_amount` | Budget amount in dollars | No |
+| `budget_period` | Budget period (1=weekly, 2=monthly) | No |
+| `budget_alert` | Budget alert percentage (25, 50, 75, 100) | No |
+| `budget_stop` | Stop executions when budget is reached | No |
+
+When `budget_amount` is provided without explicitly setting the other budget parameters, the workflow automatically applies these defaults:
+- **budget_period**: `2` (monthly)
+- **budget_alert**: `100` (notify at 100% of budget)
+- **budget_stop**: `false` (do not stop executions when budget is reached)
+
+You can override these defaults by explicitly providing values for these parameters.
+
+## Usage
+
+1. Go to the **Actions** tab in your GitHub repository
+2. Select **Create Airia Project with User Group and Budget** workflow
+3. Click **Run workflow**
+4. Fill in the required inputs:
+   - Project Name
+   - Tenant ID
+   - User Group Name (must exist)
+5. Optionally configure:
+   - Project Description
+   - Budget Amount
+   - Budget Period
+   - Budget Alert threshold
+   - Budget Stop behavior
 
 ## Troubleshooting
 
