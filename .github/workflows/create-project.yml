@@ -1,0 +1,259 @@
+name: Create Airia Project (optionally with a User Group and Budget)
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_name:
+        description: 'Project Name'
+        required: true
+        type: string
+      project_description:
+        description: 'Project Description'
+        required: false
+        type: string
+        default: ''
+      user_group_name:
+        description: 'Existing User Group Name'
+        required: false
+        type: string
+      tenant_id:
+        description: 'Tenant ID'
+        required: true
+        type: string
+      budget_amount:
+        description: 'Budget Amount (in dollars)'
+        required: false
+        type: string
+      budget_period:
+        description: 'Budget Period (1 for weekly, 2 for monthly)'
+        required: false
+        type: string
+      budget_alert:
+        description: 'Budget Alert Percentage (25, 50, 75 or 100)'
+        required: false
+        type: string
+      budget_stop:
+        description: 'Stop executions when budget is reached'
+        required: false
+        type: boolean
+
+env:
+  API_BASE_URL: https://prodaus.api.airia.ai
+
+jobs:
+  create-project-setup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Project
+        id: create_project
+        run: |
+          response=$(curl -X POST "${{ env.API_BASE_URL }}/v1/Project" \
+            -H "Content-Type: application/json" \
+            -H "X-API-KEY: ${{ secrets.AIRIA_API_TOKEN }}" \
+            -H "x-correlation-id: ${{ github.run_id }}" \
+            -d '{
+              "name": "${{ inputs.project_name }}",
+              "tenantId": "${{ inputs.tenant_id }}",
+              "description": "${{ inputs.project_description }}",
+              "requireClassification": false,
+              "projectType": "Standard",
+              "models": [],
+              "apiKeys": [],
+              "prompts": [],
+              "memories": [],
+              "pipelines": [],
+              "dataSources": []
+            }' \
+            -w "\n%{http_code}" -s)
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" -eq 201 ] || [ "$http_code" -eq 200 ]; then
+            echo "Project created successfully"
+            project_id=$(echo "$body" | jq -r '.id')
+
+            if [ -z "$project_id" ] || [ "$project_id" == "null" ]; then
+              echo "Failed to extract project ID from response"
+              echo "Response: $body"
+              exit 1
+            fi
+
+            echo "project_id=$project_id" >> $GITHUB_OUTPUT
+            echo "Project ID: $project_id"
+          else
+            echo "Failed to create project. HTTP Status: $http_code"
+            echo "Response: $body"
+            exit 1
+          fi
+
+      - name: Set Budget Defaults
+        id: set_budget_defaults
+        if: inputs.budget_amount != ''
+        run: |
+          # Set defaults when budget is provided
+          BUDGET_PERIOD="${{ inputs.budget_period }}"
+          BUDGET_ALERT="${{ inputs.budget_alert }}"
+          BUDGET_STOP="${{ inputs.budget_stop }}"
+
+          # Apply defaults if not explicitly set
+          if [ -z "$BUDGET_PERIOD" ]; then
+            BUDGET_PERIOD="2"
+          fi
+
+          if [ -z "$BUDGET_ALERT" ]; then
+            BUDGET_ALERT="100"
+          fi
+
+          if [ "$BUDGET_STOP" != "true" ] && [ "$BUDGET_STOP" != "false" ]; then
+            BUDGET_STOP="false"
+          fi
+
+          echo "budget_period=$BUDGET_PERIOD" >> $GITHUB_OUTPUT
+          echo "budget_alert=$BUDGET_ALERT" >> $GITHUB_OUTPUT
+          echo "budget_stop=$BUDGET_STOP" >> $GITHUB_OUTPUT
+          echo "Using budget settings: Period=$BUDGET_PERIOD, Alert=$BUDGET_ALERT%, Stop=$BUDGET_STOP"
+
+      - name: Update Project Budget
+        id: update_budget
+        if: inputs.budget_amount != ''
+        run: |
+          response=$(curl -X PUT "${{ env.API_BASE_URL }}/v1/Project/${{ steps.create_project.outputs.project_id }}" \
+            -H "Content-Type: application/json" \
+            -H "X-API-KEY: ${{ secrets.AIRIA_API_TOKEN }}" \
+            -H "x-correlation-id: ${{ github.run_id }}" \
+            -d '{
+              "id": "${{ steps.create_project.outputs.project_id }}",
+              "name": "${{ inputs.project_name }}",
+              "description": "${{ inputs.project_description }}",
+              "tenantId": "${{ inputs.tenant_id }}",
+              "budgetAmount": ${{ inputs.budget_amount }},
+              "budgetPeriod": "${{ steps.set_budget_defaults.outputs.budget_period }}",
+              "budgetAlert": "${{ steps.set_budget_defaults.outputs.budget_alert }}",
+              "budgetStop": ${{ steps.set_budget_defaults.outputs.budget_stop }},
+              "requireClassification": false,
+              "projectType": "Standard",
+              "models": [],
+              "apiKeys": [],
+              "prompts": [],
+              "memories": [],
+              "pipelines": [],
+              "dataSources": []
+            }' \
+            -w "\n%{http_code}" -s)
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 204 ]; then
+            echo "Project budget updated successfully"
+          else
+            echo "Failed to update project budget. HTTP Status: $http_code"
+            echo "Response: $body"
+            exit 1
+          fi
+
+      - name: Get User Group ID by Name
+        id: get_group
+        if: inputs.user_group_name != ''
+        run: |
+          response=$(curl -X GET "${{ env.API_BASE_URL }}/v1/Groups" \
+            -H "Content-Type: application/json" \
+            -H "X-API-KEY: ${{ secrets.AIRIA_API_TOKEN }}" \
+            -H "x-correlation-id: ${{ github.run_id }}" \
+            -w "\n%{http_code}" -s)
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" -eq 200 ]; then
+            echo "Groups retrieved successfully"
+
+            # Extract group ID and user IDs from items array
+            group_id=$(echo "$body" | jq -r '.items[] | select(.name == "${{ inputs.user_group_name }}") | .id' | head -n 1)
+
+            if [ -z "$group_id" ] || [ "$group_id" == "null" ]; then
+              echo "User group with name '${{ inputs.user_group_name }}' not found"
+              echo "Available groups:"
+              echo "$body" | jq -r '.items[] | .name'
+              exit 1
+            fi
+
+            echo "group_id=$group_id" >> $GITHUB_OUTPUT
+            echo "Found Group ID: $group_id"
+
+            # Get detailed group information to extract user IDs
+            group_response=$(curl -X GET "${{ env.API_BASE_URL }}/v1/Groups/$group_id" \
+              -H "Content-Type: application/json" \
+              -H "X-API-KEY: ${{ secrets.AIRIA_API_TOKEN }}" \
+              -H "x-correlation-id: ${{ github.run_id }}" \
+              -w "\n%{http_code}" -s)
+
+            group_http_code=$(echo "$group_response" | tail -n1)
+            group_body=$(echo "$group_response" | sed '$d')
+
+            if [ "$group_http_code" -eq 200 ]; then
+              echo "Group details retrieved successfully"
+
+              # Extract user IDs as JSON array from the group response
+              user_ids=$(echo "$group_body" | jq -c '[.users[].id]')
+
+              echo "user_ids=$user_ids" >> $GITHUB_OUTPUT
+              echo "Found User IDs: $user_ids"
+            else
+              echo "Failed to retrieve group details. HTTP Status: $group_http_code"
+              echo "Response: $group_body"
+              exit 1
+            fi
+          else
+            echo "Failed to retrieve groups. HTTP Status: $http_code"
+            echo "Response: $body"
+            exit 1
+          fi
+
+      - name: Assign Group as Project Admin
+        if: inputs.user_group_name != ''
+        run: |
+          response=$(curl -X PUT "${{ env.API_BASE_URL }}/v1/Groups/${{ steps.get_group.outputs.group_id }}" \
+            -H "Content-Type: application/json" \
+            -H "X-API-KEY: ${{ secrets.AIRIA_API_TOKEN }}" \
+            -H "x-correlation-id: ${{ github.run_id }}" \
+            -d '{
+              "id": "${{ steps.get_group.outputs.group_id }}",
+              "name": "${{ inputs.user_group_name }}",
+              "roleIds": ["e79b381e-0c69-4705-bc14-a3fc66d88bf5"],
+              "projectIds": ["${{ steps.create_project.outputs.project_id }}"],
+              "userIds": ${{ steps.get_group.outputs.user_ids }}
+            }' \
+            -w "\n%{http_code}" -s)
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ] || [ "$http_code" -eq 204 ]; then
+            echo "Group assigned to project successfully"
+          else
+            echo "Failed to assign group to project. HTTP Status: $http_code"
+            echo "Response: $body"
+            exit 1
+          fi
+
+      - name: Summary
+        run: |
+          echo "## Project Setup Complete :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project Name:** ${{ inputs.project_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project ID:** ${{ steps.create_project.outputs.project_id }}" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "${{ inputs.user_group_name }}" ]; then
+            echo "- **User Group:** ${{ inputs.user_group_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Group ID:** ${{ steps.get_group.outputs.group_id }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ -n "${{ inputs.budget_amount }}" ]; then
+            echo "- **Budget:** \$${{ inputs.budget_amount }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Budget Period:** ${{ steps.set_budget_defaults.outputs.budget_period }} (1=weekly, 2=monthly)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Budget Alert:** ${{ steps.set_budget_defaults.outputs.budget_alert }}%" >> $GITHUB_STEP_SUMMARY
+            echo "- **Budget Stop:** ${{ steps.set_budget_defaults.outputs.budget_stop }}" >> $GITHUB_STEP_SUMMARY
+          fi
